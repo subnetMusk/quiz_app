@@ -136,10 +136,10 @@ Per fare domande dove abbini due colonne:
 
 Ogni domanda deve avere un ID unico nel file. Le categorie delle domande devono esistere nella lista delle categorie. Per le domande a scelta multipla serve almeno una risposta corretta. Per quelle di collegamento, le due colonne devono avere lo stesso numero di elementi e vanno in ordine (il primo della sinistra va con il primo della destra, eccetera).
 
-L'app carica automaticamente tutti i file JSON che metti nella cartella principale del progetto.
+L'app importa automaticamente tutti i file JSON che aggiungi al progetto. Metti i tuoi file nella cartella `quiz_app/Documents/` e verranno caricati al primo avvio.
 
 ## Installazione
 
 Serve iOS 18.5 o più recente. Clona il repository, apri il progetto in Xcode, metti i tuoi file JSON nella cartella principale e compila l'app.
 
-Licenza MIT - puoi usarla e modificarla come vuoi.
+Licenza MIT - by subnetMusk.
