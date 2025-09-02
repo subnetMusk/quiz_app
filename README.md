@@ -138,6 +138,22 @@ Ogni domanda deve avere un ID unico nel file. Le categorie delle domande devono 
 
 L'app importa automaticamente tutti i file JSON che aggiungi al progetto. Metti i tuoi file nella cartella `quiz_app/Documents/` e verranno caricati al primo avvio.
 
+## PS
+
+Il tema scuro è quello di default ma è carino...
+
+<div align="center">
+<img src="screenshots/dark-0.png" width="180" alt="Dark Theme 1"/>
+<img src="screenshots/dark-1.png" width="180" alt="Dark Theme 2"/>
+<img src="screenshots/dark-2.png" width="180" alt="Dark Theme 3"/>
+</div>
+
+<div align="center">
+<img src="screenshots/dark-3.png" width="180" alt="Dark Theme 4"/>
+<img src="screenshots/dark-4.png" width="180" alt="Dark Theme 5"/>
+<img src="screenshots/dark-5.png" width="180" alt="Dark Theme 6"/>
+</div>
+
 ## Installazione
 
 Serve iOS 18.5 o più recente. Clona il repository, apri il progetto in Xcode, metti i tuoi file JSON nella cartella principale e compila l'app.
