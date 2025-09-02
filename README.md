@@ -15,27 +15,6 @@ Carichi le tue materie con file JSON, scegli che tipo di quiz fare e l'app tiene
 
 Qui vedi tutte le materie che hai caricato. Selezioni quella su cui vuoi lavorare e parti da lì.
 
-### Dashboard delle Statistiche
-<div align="center">
-<img src="screenshots/02-home-stats.png" width="300" alt="Statistiche Generali"/>
-</div>
-
-Le statistiche ti mostrano come stai andando. Vedi i progressi nel tempo e capisci dove devi studiare di più.
-
-### Analisi per Categoria
-<div align="center">
-<img src="screenshots/03-stats-categoria.png" width="300" alt="Statistiche per Categoria"/>
-</div>
-
-Puoi vedere come vai in ogni categoria della materia. Così capisci subito dove sei più bravo e dove devi insistere.
-
-### Dettagli delle Singole Domande
-<div align="center">
-<img src="screenshots/04-dettagli-domanda-stats.png" width="300" alt="Dettagli Specifici"/>
-</div>
-
-L'app ricorda ogni domanda: quante volte hai risposto giusto, quante sbagliate, quante incomplete. Ti aiuta a capire su cosa concentrarti.
-
 ### Configurazione del Quiz
 <div align="center">
 <img src="screenshots/05-selezione-tipo-scheda.png" width="300" alt="Selezione Modalità Quiz"/>
@@ -77,6 +56,27 @@ Se una domanda ha più risposte corrette e ne metti solo alcune, l'app ti dice c
 <div align="center">
 <img src="screenshots/11-dettagli-post-scheda.png" width="300" alt="Risultati della Sessione"/>
 </div>
+
+### Dashboard delle Statistiche
+<div align="center">
+<img src="screenshots/02-home-stats.png" width="300" alt="Statistiche Generali"/>
+</div>
+
+Le statistiche ti mostrano come stai andando. Vedi i progressi nel tempo e capisci dove devi studiare di più.
+
+### Analisi per Categoria
+<div align="center">
+<img src="screenshots/03-stats-categoria.png" width="300" alt="Statistiche per Categoria"/>
+</div>
+
+Puoi vedere come vai in ogni categoria della materia. Così capisci subito dove sei più bravo e dove devi insistere.
+
+### Dettagli delle Singole Domande
+<div align="center">
+<img src="screenshots/04-dettagli-domanda-stats.png" width="300" alt="Dettagli Specifici"/>
+</div>
+
+L'app ricorda ogni domanda: quante volte hai risposto giusto, quante sbagliate, quante incomplete. Ti aiuta a capire su cosa concentrarti.
 
 Finito il quiz vedi come è andata: punteggio, tipi di domande, categorie. Ti aiuta a capire su cosa lavorare la prossima volta.
 
