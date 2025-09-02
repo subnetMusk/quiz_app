@@ -24,25 +24,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		A724C11B2E65FE2400883261 /* quiz_app.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = quiz_app.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A724C12A2E65FE2600883261 /* quiz_appTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = quiz_appTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A724C1342E65FE2600883261 /* quiz_appUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = quiz_appUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A73791332E660EF90031E075 /* quiz_app.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = quiz_app.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A73791342E660EF90031E075 /* quiz_appTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = quiz_appTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A73791352E660EF90031E075 /* quiz_appUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = quiz_appUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A724C11D2E65FE2400883261 /* quiz_app */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = quiz_app;
-			sourceTree = "<group>";
-		};
-		A724C12D2E65FE2600883261 /* quiz_appTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = quiz_appTests;
-			sourceTree = "<group>";
-		};
-		A724C1372E65FE2600883261 /* quiz_appUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = quiz_appUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -76,20 +66,10 @@
 			isa = PBXGroup;
 			children = (
 				A724C11D2E65FE2400883261 /* quiz_app */,
-				A724C12D2E65FE2600883261 /* quiz_appTests */,
-				A724C1372E65FE2600883261 /* quiz_appUITests */,
-				A724C11C2E65FE2400883261 /* Products */,
+				A73791332E660EF90031E075 /* quiz_app.app */,
+				A73791342E660EF90031E075 /* quiz_appTests.xctest */,
+				A73791352E660EF90031E075 /* quiz_appUITests.xctest */,
 			);
-			sourceTree = "<group>";
-		};
-		A724C11C2E65FE2400883261 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				A724C11B2E65FE2400883261 /* quiz_app.app */,
-				A724C12A2E65FE2600883261 /* quiz_appTests.xctest */,
-				A724C1342E65FE2600883261 /* quiz_appUITests.xctest */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -114,7 +94,7 @@
 			packageProductDependencies = (
 			);
 			productName = quiz_app;
-			productReference = A724C11B2E65FE2400883261 /* quiz_app.app */;
+			productReference = A73791332E660EF90031E075 /* quiz_app.app */;
 			productType = "com.apple.product-type.application";
 		};
 		A724C1292E65FE2600883261 /* quiz_appTests */ = {
@@ -130,14 +110,11 @@
 			dependencies = (
 				A724C12C2E65FE2600883261 /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				A724C12D2E65FE2600883261 /* quiz_appTests */,
-			);
 			name = quiz_appTests;
 			packageProductDependencies = (
 			);
 			productName = quiz_appTests;
-			productReference = A724C12A2E65FE2600883261 /* quiz_appTests.xctest */;
+			productReference = A73791342E660EF90031E075 /* quiz_appTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		A724C1332E65FE2600883261 /* quiz_appUITests */ = {
@@ -153,14 +130,11 @@
 			dependencies = (
 				A724C1362E65FE2600883261 /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				A724C1372E65FE2600883261 /* quiz_appUITests */,
-			);
 			name = quiz_appUITests;
 			packageProductDependencies = (
 			);
 			productName = quiz_appUITests;
-			productReference = A724C1342E65FE2600883261 /* quiz_appUITests.xctest */;
+			productReference = A73791352E660EF90031E075 /* quiz_appUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -196,7 +170,7 @@
 			mainGroup = A724C1122E65FE2400883261;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = A724C11C2E65FE2400883261 /* Products */;
+			productRefGroup = A724C1122E65FE2400883261;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (

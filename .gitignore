@@ -1,0 +1,103 @@
+# Xcode
+.DS_Store
+*/build/*
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+profile
+*.moved-aside
+DerivedData/
+.idea/
+*.hmap
+*.xccheckout
+*.xcworkspace
+!default.xcworkspace
+
+# Xcode User State
+*.xcuserstate
+*.xcuserdatad
+
+# Carthage
+Carthage/Build
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Provisioning profiles
+*.mobileprovision
+*.provisionprofile
+
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Virtual Environment
+.venv/
+venv/
+
+# CocoaPods
+Pods/
+*.xcworkspace
+!default.xcworkspace
+
+# AppCode
+.idea/
+
+# Development tools
+.swiftlint.yml
+.swiftformat
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+# Archive
+*.zip
+*.tar.gz
+
+# Local configuration
+*.local
+config.local.json
+
+# Quiz App Specific
+!Resources/*.json
+
+# IDE files
+.vscode/
+.idea/
+
+# Backup files
+*~
+*.bak

@@ -2,31 +2,21 @@
 //  quiz_appApp.swift
 //  quiz_app
 //
-//  Created by Leonardo Soligo on 9/1/25.
+//  Created by subnetMusk on 9/1/25.
 //
-
 import SwiftUI
-import SwiftData
 
 @main
 struct quiz_appApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    @StateObject private var appStore = AppStore()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainAppView(app: appStore)
+                .onAppear {
+                    // Carica l'ultima materia utilizzata all'avvio
+                    appStore.refreshSubjects()
+                }
         }
-        .modelContainer(sharedModelContainer)
     }
 }

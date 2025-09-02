@@ -1,0 +1,551 @@
+{
+  "meta": {
+    "subject_id": "auto:sha256",
+    "subject_name": "Test Debug",
+    "version": 1
+  },
+  "config": {
+    "scales_questions": [
+      5,
+      10,
+      "all"
+    ],
+    "scales_category": [
+      3,
+      5,
+      "all"
+    ],
+    "scales_errors": [
+      3,
+      5,
+      "all"
+    ],
+    "feedback": "immediate"
+  },
+  "taxonomy": [
+    {
+      "id": "categoria_a",
+      "name": "Categoria A",
+      "sub": [
+        {
+          "id": "sub_a1",
+          "name": "Sub A1"
+        },
+        {
+          "id": "sub_a2",
+          "name": "Sub A2"
+        }
+      ]
+    },
+    {
+      "id": "categoria_b",
+      "name": "Categoria B",
+      "sub": [
+        {
+          "id": "sub_b1",
+          "name": "Sub B1"
+        },
+        {
+          "id": "sub_b2",
+          "name": "Sub B2"
+        }
+      ]
+    },
+    {
+      "id": "categoria_c",
+      "name": "Categoria C",
+      "sub": [
+        {
+          "id": "sub_c1",
+          "name": "Sub C1"
+        },
+        {
+          "id": "sub_c2",
+          "name": "Sub C2"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "q001",
+      "category": "categoria_a",
+      "subcategory": "sub_a1",
+      "kind": "multiple",
+      "prompt": "Domanda A1",
+      "options": [
+        {
+          "id": 0,
+          "text": "Risposta Corretta A1.1",
+          "isCorrect": true
+        },
+        {
+          "id": 1,
+          "text": "Risposta Errata A1.2",
+          "isCorrect": false
+        },
+        {
+          "id": 2,
+          "text": "Risposta Errata A1.3",
+          "isCorrect": false
+        },
+        {
+          "id": 3,
+          "text": "Risposta Errata A1.4",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q002",
+      "category": "categoria_a",
+      "subcategory": "sub_a1",
+      "kind": "multiple",
+      "prompt": "Domanda A2",
+      "options": [
+        {
+          "id": 0,
+          "text": "Risposta Corretta A2.1",
+          "isCorrect": true
+        },
+        {
+          "id": 1,
+          "text": "Risposta Errata A2.2",
+          "isCorrect": false
+        },
+        {
+          "id": 2,
+          "text": "Risposta Errata A2.3",
+          "isCorrect": false
+        },
+        {
+          "id": 3,
+          "text": "Risposta Errata A2.4",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q003",
+      "category": "categoria_a",
+      "subcategory": "sub_a1",
+      "kind": "matching",
+      "prompt": "Associa A con numero:",
+      "left": [
+        "Elemento A1",
+        "Elemento A2",
+        "Elemento A3"
+      ],
+      "right": [
+        "Numero 1",
+        "Numero 2",
+        "Numero 3"
+      ],
+      "correctMatches": {
+        "0": 0,
+        "1": 1,
+        "2": 2
+      }
+    },
+    {
+      "id": "q004",
+      "category": "categoria_a",
+      "subcategory": "sub_a2",
+      "kind": "multiple",
+      "prompt": "Domanda A3",
+      "options": [
+        {
+          "id": 0,
+          "text": "Risposta Corretta A3.1",
+          "isCorrect": true
+        },
+        {
+          "id": 1,
+          "text": "Risposta Errata A3.2",
+          "isCorrect": false
+        },
+        {
+          "id": 2,
+          "text": "Risposta Errata A3.3",
+          "isCorrect": false
+        },
+        {
+          "id": 3,
+          "text": "Risposta Errata A3.4",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q005",
+      "category": "categoria_a",
+      "subcategory": "sub_a2",
+      "kind": "multiple",
+      "prompt": "Domanda A4",
+      "options": [
+        {
+          "id": 0,
+          "text": "Risposta Corretta A4.1",
+          "isCorrect": true
+        },
+        {
+          "id": 1,
+          "text": "Risposta Errata A4.2",
+          "isCorrect": false
+        },
+        {
+          "id": 2,
+          "text": "Risposta Errata A4.3",
+          "isCorrect": false
+        },
+        {
+          "id": 3,
+          "text": "Risposta Errata A4.4",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q006",
+      "category": "categoria_a",
+      "subcategory": "sub_a2",
+      "kind": "matching",
+      "prompt": "Associa Lettera con Colore:",
+      "left": [
+        "Lettera X",
+        "Lettera Y",
+        "Lettera Z"
+      ],
+      "right": [
+        "Colore X",
+        "Colore Y",
+        "Colore Z"
+      ],
+      "correctMatches": {
+        "0": 0,
+        "1": 1,
+        "2": 2
+      }
+    },
+    {
+      "id": "q007",
+      "category": "categoria_b",
+      "subcategory": "sub_b1",
+      "kind": "multiple",
+      "prompt": "Domanda B1",
+      "options": [
+        {
+          "id": 0,
+          "text": "Risposta Corretta B1.1",
+          "isCorrect": true
+        },
+        {
+          "id": 1,
+          "text": "Risposta Errata B1.2",
+          "isCorrect": false
+        },
+        {
+          "id": 2,
+          "text": "Risposta Errata B1.3",
+          "isCorrect": false
+        },
+        {
+          "id": 3,
+          "text": "Risposta Errata B1.4",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q008",
+      "category": "categoria_b",
+      "subcategory": "sub_b1",
+      "kind": "multiple",
+      "prompt": "Domanda B2",
+      "options": [
+        {
+          "id": 0,
+          "text": "Risposta Corretta B2.1",
+          "isCorrect": true
+        },
+        {
+          "id": 1,
+          "text": "Risposta Errata B2.2",
+          "isCorrect": false
+        },
+        {
+          "id": 2,
+          "text": "Risposta Errata B2.3",
+          "isCorrect": false
+        },
+        {
+          "id": 3,
+          "text": "Risposta Errata B2.4",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q009",
+      "category": "categoria_b",
+      "subcategory": "sub_b1",
+      "kind": "matching",
+      "prompt": "Associa B con numero:",
+      "left": [
+        "Elemento B1",
+        "Elemento B2",
+        "Elemento B3"
+      ],
+      "right": [
+        "Numero B2",
+        "Numero B1",
+        "Numero B3"
+      ],
+      "correctMatches": {
+        "0": 1,
+        "1": 0,
+        "2": 2
+      }
+    },
+    {
+      "id": "q010",
+      "category": "categoria_b",
+      "subcategory": "sub_b2",
+      "kind": "multiple",
+      "prompt": "Domanda B3",
+      "options": [
+        {
+          "id": 0,
+          "text": "Risposta Corretta B3.1",
+          "isCorrect": true
+        },
+        {
+          "id": 1,
+          "text": "Risposta Errata B3.2",
+          "isCorrect": false
+        },
+        {
+          "id": 2,
+          "text": "Risposta Corretta B3.3",
+          "isCorrect": true
+        },
+        {
+          "id": 3,
+          "text": "Risposta Errata B3.4",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q011",
+      "category": "categoria_b",
+      "subcategory": "sub_b2",
+      "kind": "multiple",
+      "prompt": "Domanda B4",
+      "options": [
+        {
+          "id": 0,
+          "text": "Risposta Corretta B4.1",
+          "isCorrect": true
+        },
+        {
+          "id": 1,
+          "text": "Risposta Errata B4.2",
+          "isCorrect": false
+        },
+        {
+          "id": 2,
+          "text": "Risposta Errata B4.3",
+          "isCorrect": false
+        },
+        {
+          "id": 3,
+          "text": "Risposta Errata B4.4",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q012",
+      "category": "categoria_b",
+      "subcategory": "sub_b2",
+      "kind": "matching",
+      "prompt": "Associa Animale con Suono:",
+      "left": [
+        "Cane",
+        "Gatto",
+        "Mucca"
+      ],
+      "right": [
+        "Muu",
+        "Miao",
+        "Bau"
+      ],
+      "correctMatches": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      }
+    },
+    {
+      "id": "q013",
+      "category": "categoria_c",
+      "subcategory": "sub_c1",
+      "kind": "multiple",
+      "prompt": "Domanda C1",
+      "options": [
+        {
+          "id": 0,
+          "text": "Risposta Corretta C1.1",
+          "isCorrect": true
+        },
+        {
+          "id": 1,
+          "text": "Risposta Errata C1.2",
+          "isCorrect": false
+        },
+        {
+          "id": 2,
+          "text": "Risposta Errata C1.3",
+          "isCorrect": false
+        },
+        {
+          "id": 3,
+          "text": "Risposta Errata C1.4",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q014",
+      "category": "categoria_c",
+      "subcategory": "sub_c1",
+      "kind": "multiple",
+      "prompt": "Domanda C2",
+      "options": [
+        {
+          "id": 0,
+          "text": "Risposta Corretta C2.1",
+          "isCorrect": true
+        },
+        {
+          "id": 1,
+          "text": "Risposta Errata C2.2",
+          "isCorrect": false
+        },
+        {
+          "id": 2,
+          "text": "Risposta Errata C2.3",
+          "isCorrect": false
+        },
+        {
+          "id": 3,
+          "text": "Risposta Corretta C2.4",
+          "isCorrect": true
+        }
+      ]
+    },
+    {
+      "id": "q015",
+      "category": "categoria_c",
+      "subcategory": "sub_c1",
+      "kind": "matching",
+      "prompt": "Associa C con numero:",
+      "left": [
+        "Elemento C1",
+        "Elemento C2",
+        "Elemento C3"
+      ],
+      "right": [
+        "Numero C1",
+        "Numero C2",
+        "Numero C3"
+      ],
+      "correctMatches": {
+        "0": 0,
+        "1": 1,
+        "2": 2
+      }
+    },
+    {
+      "id": "q016",
+      "category": "categoria_c",
+      "subcategory": "sub_c2",
+      "kind": "multiple",
+      "prompt": "Domanda C3",
+      "options": [
+        {
+          "id": 0,
+          "text": "Risposta Corretta C3.1",
+          "isCorrect": true
+        },
+        {
+          "id": 1,
+          "text": "Risposta Errata C3.2",
+          "isCorrect": false
+        },
+        {
+          "id": 2,
+          "text": "Risposta Errata C3.3",
+          "isCorrect": false
+        },
+        {
+          "id": 3,
+          "text": "Risposta Errata C3.4",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q017",
+      "category": "categoria_c",
+      "subcategory": "sub_c2",
+      "kind": "multiple",
+      "prompt": "Domanda C4",
+      "options": [
+        {
+          "id": 0,
+          "text": "Risposta Corretta C4.1",
+          "isCorrect": true
+        },
+        {
+          "id": 1,
+          "text": "Risposta Errata C4.2",
+          "isCorrect": false
+        },
+        {
+          "id": 2,
+          "text": "Risposta Errata C4.3",
+          "isCorrect": false
+        },
+        {
+          "id": 3,
+          "text": "Risposta Errata C4.4",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "q018",
+      "category": "categoria_c",
+      "subcategory": "sub_c2",
+      "kind": "matching",
+      "prompt": "Associa Frutta con Colore:",
+      "left": [
+        "Mela",
+        "Banana",
+        "Arancia"
+      ],
+      "right": [
+        "Rosso",
+        "Giallo",
+        "Arancione"
+      ],
+      "correctMatches": {
+        "0": 0,
+        "1": 1,
+        "2": 2
+      }
+    }
+  ]
+}
