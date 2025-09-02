@@ -57,6 +57,8 @@ Se una domanda ha più risposte corrette e ne metti solo alcune, l'app ti dice c
 <img src="screenshots/11-dettagli-post-scheda.png" width="300" alt="Risultati della Sessione"/>
 </div>
 
+Finito il quiz vedi come è andata: punteggio, tipi di domande, categorie. Ti aiuta a capire su cosa lavorare la prossima volta.
+
 ### Dashboard delle Statistiche
 <div align="center">
 <img src="screenshots/02-home-stats.png" width="300" alt="Statistiche Generali"/>
@@ -78,7 +80,6 @@ Puoi vedere come vai in ogni categoria della materia. Così capisci subito dove 
 
 L'app ricorda ogni domanda: quante volte hai risposto giusto, quante sbagliate, quante incomplete. Ti aiuta a capire su cosa concentrarti.
 
-Finito il quiz vedi come è andata: punteggio, tipi di domande, categorie. Ti aiuta a capire su cosa lavorare la prossima volta.
 
 ## Come creare i contenuti JSON
 
