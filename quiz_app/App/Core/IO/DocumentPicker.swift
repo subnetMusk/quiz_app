@@ -2,7 +2,7 @@
 //  DocumentPicker.swift
 //  quiz_app
 //
-//  Created by subnetMusk on 9/1/25.
+//  Created by Leonardo Soligo on 9/1/25.
 //
 
 import SwiftUI

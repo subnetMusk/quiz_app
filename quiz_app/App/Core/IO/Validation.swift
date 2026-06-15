@@ -2,7 +2,7 @@
 //  Validation.swift
 //  quiz_app
 //
-//  Created by subnetMusk on 9/1/25.
+//  Created by Leonardo Soligo on 9/1/25.
 //
 
 import Foundation
@@ -187,7 +187,14 @@ private func validateQuestionsStructure(_ questions: [Question], taxonomy: [Mate
             throw MateriaError.invalidQuestionStructure("\(questionPrefix): category '\(question.category)' non trovata in taxonomy")
         }
         
-        // Validazione specifica per tipo di domanda
+        // Validazione specifica per tipo di domanda (compositi ammessi al livello top)
+        try validateAnswerSpecific(question, prefix: questionPrefix, allowComposite: true)
+    }
+}
+
+/// Valida i campi specifici per il tipo di domanda. Riusata anche per le sotto-domande
+/// di `caseStudy`/`mediaAnalysis` (con `allowComposite: false`, niente annidamento di compositi).
+private func validateAnswerSpecific(_ question: Question, prefix questionPrefix: String, allowComposite: Bool) throws {
         switch question.kind {
         case .multiple:
             guard let options = question.options, !options.isEmpty else {
@@ -225,7 +232,163 @@ private func validateQuestionsStructure(_ questions: [Question], taxonomy: [Mate
                     throw MateriaError.invalidQuestionStructure("\(questionPrefix): indice rightColumn \(rightIdx) non valido")
                 }
             }
+
+        case .trueFalseMotivated:
+            guard question.answer != nil else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): domanda 'trueFalseMotivated' deve avere il campo 'answer' (true/false)")
+            }
+            // Il pool randomizzato, se presente, ha la precedenza sulle motivazioni statiche.
+            try validateOptionPool(question.optionPool, prefix: "\(questionPrefix).optionPool")
+            // Le motivazioni statiche (legacy) sono facoltative; se presenti devono essere valide.
+            if let opts = question.motivationOptions, !opts.isEmpty {
+                guard opts.contains(where: { $0.isCorrect }) else {
+                    throw MateriaError.invalidQuestionStructure("\(questionPrefix): 'motivationOptions' deve contenere almeno una motivazione corretta")
+                }
+                for (i, o) in opts.enumerated() where o.text.isEmpty {
+                    throw MateriaError.invalidQuestionStructure("\(questionPrefix): motivationOptions[\(i)].text è vuoto")
+                }
+            }
+
+        case .clozeWordBank:
+            guard let text = question.text, !text.isEmpty else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): domanda 'clozeWordBank' deve avere 'text' non vuoto")
+            }
+            guard let blanks = question.blanks, !blanks.isEmpty else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): domanda 'clozeWordBank' deve avere 'blanks' non vuoto")
+            }
+            guard let wordBank = question.wordBank, !wordBank.isEmpty else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): domanda 'clozeWordBank' deve avere 'wordBank' non vuoto")
+            }
+            let cs = question.caseSensitive ?? false
+            let bankNorm = Set(wordBank.map { cs ? $0 : $0.lowercased() })
+            for b in blanks {
+                guard !b.answers.isEmpty else {
+                    throw MateriaError.invalidQuestionStructure("\(questionPrefix): blank id \(b.id) non ha risposte ('answers' vuoto)")
+                }
+                guard text.contains("{{\(b.id)}}") else {
+                    throw MateriaError.invalidQuestionStructure("\(questionPrefix): manca il segnaposto '{{\(b.id)}}' nel testo per il blank id \(b.id)")
+                }
+                // Almeno una risposta corretta dev'essere selezionabile dalla word bank.
+                let selectable = b.answers.contains { bankNorm.contains(cs ? $0 : $0.lowercased()) }
+                guard selectable else {
+                    throw MateriaError.invalidQuestionStructure("\(questionPrefix): nessuna risposta del blank id \(b.id) è presente nella 'wordBank'")
+                }
+            }
+
+        case .shortAnswer:
+            guard let accepted = question.acceptedAnswers, !accepted.isEmpty else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): domanda 'shortAnswer' deve avere 'acceptedAnswers' non vuoto")
+            }
+            for (i, a) in accepted.enumerated() where a.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): acceptedAnswers[\(i)] è vuoto")
+            }
+
+        case .ordered:
+            guard let items = question.items, items.count >= 2 else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): domanda 'ordered' deve avere almeno 2 'items'")
+            }
+            for (i, it) in items.enumerated() where it.isEmpty {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): items[\(i)] è vuoto")
+            }
+
+        case .calculation:
+            guard let accepted = question.acceptedAnswers, !accepted.isEmpty else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): domanda 'calculation' deve avere 'acceptedAnswers' non vuoto")
+            }
+            for (i, a) in accepted.enumerated() where a.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): acceptedAnswers[\(i)] è vuoto")
+            }
+
+        case .openRubric:
+            let hasExpected = !(question.expectedAnswer ?? "").isEmpty
+            let hasKeyPoints = !(question.keyPoints ?? []).isEmpty
+            let hasPool = question.optionPool != nil
+            guard hasExpected || hasKeyPoints || hasPool else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): domanda 'openRubric' deve avere almeno 'expectedAnswer', 'keyPoints' o 'optionPool'")
+            }
+            if let minKP = question.minKeyPoints {
+                let kpCount = (question.keyPoints ?? []).count
+                guard minKP >= 0, minKP <= kpCount else {
+                    throw MateriaError.invalidQuestionStructure("\(questionPrefix): 'minKeyPoints' (\(minKP)) deve essere tra 0 e il numero di 'keyPoints' (\(kpCount))")
+                }
+            }
+            try validateOptionPool(question.optionPool, prefix: "\(questionPrefix).optionPool")
+
+        case .constructedResponse:
+            let hasCriteria = !(question.requiredCriteria ?? []).isEmpty
+            let hasPool = question.optionPool != nil
+            guard hasCriteria || hasPool else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): domanda 'constructedResponse' deve avere 'requiredCriteria' o 'optionPool'")
+            }
+            for (i, c) in (question.requiredCriteria ?? []).enumerated() where c.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): requiredCriteria[\(i)] è vuoto")
+            }
+            try validateOptionPool(question.optionPool, prefix: "\(questionPrefix).optionPool")
+
+        case .mediaAnalysis:
+            guard allowComposite else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): 'mediaAnalysis' non può essere annidato come sotto-domanda")
+            }
+            guard let media = question.media else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): domanda 'mediaAnalysis' deve avere il campo 'media'")
+            }
+            try validateMedia(media, prefix: "\(questionPrefix).media")
+            let subs = question.subquestions ?? []
+            guard !subs.isEmpty else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): domanda 'mediaAnalysis' deve avere almeno una 'subquestions'")
+            }
+            try validateSubquestions(subs, prefix: questionPrefix)
+
+        case .caseStudy:
+            guard allowComposite else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): 'caseStudy' non può essere annidato come sotto-domanda")
+            }
+            let subs = question.subquestions ?? []
+            guard !subs.isEmpty else {
+                throw MateriaError.invalidQuestionStructure("\(questionPrefix): domanda 'caseStudy' deve avere almeno una 'subquestions'")
+            }
+            if let stimuli = question.stimuli {
+                for (i, s) in stimuli.enumerated() {
+                    let hasContent = !(s.text ?? "").isEmpty || !(s.code ?? "").isEmpty || s.media != nil
+                    guard hasContent else {
+                        throw MateriaError.invalidQuestionStructure("\(questionPrefix): stimuli[\(i)] è vuoto (serve text, code o media)")
+                    }
+                    if let m = s.media { try validateMedia(m, prefix: "\(questionPrefix).stimuli[\(i)].media") }
+                }
+            }
+            try validateSubquestions(subs, prefix: questionPrefix)
         }
+}
+
+/// Valida le sotto-domande di un composito: prompt non vuoto, niente compositi annidati,
+/// e campi specifici del tipo corretti.
+private func validateSubquestions(_ subs: [Question], prefix: String) throws {
+    for (i, sub) in subs.enumerated() {
+        let subPrefix = "\(prefix).subquestions[\(i)] (id: \(sub.id))"
+        guard !sub.id.isEmpty else {
+            throw MateriaError.invalidQuestionStructure("\(subPrefix): id vuoto")
+        }
+        guard !sub.prompt.isEmpty else {
+            throw MateriaError.invalidQuestionStructure("\(subPrefix): prompt vuoto")
+        }
+        try validateAnswerSpecific(sub, prefix: subPrefix, allowComposite: false)
+    }
+}
+
+/// Valida un pool di opzioni randomizzate (se presente), traducendo l'eventuale `PoolError`.
+private func validateOptionPool(_ pool: AnswerOptionPool?, prefix: String) throws {
+    guard let pool else { return }
+    if let err = PoolSampler.validationError(pool) {
+        throw MateriaError.invalidQuestionStructure("\(prefix): \(err.description)")
+    }
+}
+
+/// Valida un asset multimediale: deve avere un riferimento (url o asset locale).
+private func validateMedia(_ media: MediaAsset, prefix: String) throws {
+    let hasURL = !(media.url ?? "").isEmpty
+    let hasAsset = !(media.asset ?? "").isEmpty
+    guard hasURL || hasAsset else {
+        throw MateriaError.invalidQuestionStructure("\(prefix): l'asset deve indicare 'url' (remoto) oppure 'asset' (file locale)")
     }
 }
 

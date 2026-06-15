@@ -2,65 +2,130 @@
 //  StatsView.swift
 //  quiz_app
 //
-//  Created by subnetMusk on 9/1/25.
+//  Created by Leonardo Soligo on 9/1/25.
 //
 
 import SwiftUI
+import Charts
 
 struct StatsView: View {
     @ObservedObject var app: AppStore
 
     var body: some View {
-        List {
-            if let materia = app.activeMateria {
-                // SEZIONE: Panoramica categorie
-                Section("Categorie") {
-                    ForEach(materia.taxonomy, id: \.id) { cat in
-                        NavigationLink {
-                            CategoryStatsView(app: app, categoryId: cat.id)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(cat.name)
-                                        .font(.body)
-                                        .lineLimit(2)
-                                    Text("\(countQuestions(in: cat.id, materia: materia)) domande")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                BadgeCount(text: "\(app.statsStore?.wrongCount(categoryId: cat.id) ?? 0)",
-                                           color: .red.opacity(0.85),
-                                           systemImage: "xmark.octagon.fill")
-                                    .accessibilityLabel("Errori in \(cat.name)")
-                            }
-                        }
+        Group {
+            if let materia = app.activeMateria, let stats = app.statsStore {
+                let sessions = stats.recentSessions(limit: 30)
+                List {
+                    Section {
+                        summaryRow(sessions: sessions)
                     }
-                }
 
-                // SEZIONE: Top errori globali
-                Section("Top errori (globali)") {
-                    let topIds = app.statsStore?.topWrong(limit: 10) ?? []
-                    if topIds.isEmpty {
-                        Text("Non ci sono errori registrati.").foregroundStyle(.secondary)
-                    } else {
-                        ForEach(topIds, id: \.self) { qid in
-                            if let q = materia.questions.first(where: { $0.id == qid }) {
-                                NavigationLink {
-                                    QuestionStatsView(app: app, question: q)
-                                } label: {
-                                    QuestionRow(app: app, question: q)
+                    if sessions.count >= 2 {
+                        Section("Andamento") {
+                            SessionTrendChart(sessions: sessions.reversed())
+                        }
+                    }
+
+                    Section("Categorie") {
+                        ForEach(materia.taxonomy, id: \.id) { cat in
+                            NavigationLink {
+                                CategoryStatsView(app: app, categoryId: cat.id)
+                            } label: {
+                                categoryRow(cat: cat, materia: materia, stats: stats)
+                            }
+                        }
+                    }
+
+                    Section("Top errori") {
+                        let topIds = stats.topWrong(limit: 10)
+                        if topIds.isEmpty {
+                            Text("Nessun errore registrato. Ottimo lavoro!")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(topIds, id: \.self) { qid in
+                                if let q = materia.questions.first(where: { $0.id == qid }) {
+                                    NavigationLink {
+                                        QuestionStatsView(app: app, question: q)
+                                    } label: {
+                                        QuestionRow(app: app, question: q)
+                                    }
                                 }
                             }
                         }
                     }
+
+                    if !sessions.isEmpty {
+                        Section("Sessioni recenti") {
+                            ForEach(sessions.prefix(10), id: \.persistentModelID) { session in
+                                SessionRow(session: session)
+                            }
+                        }
+                    }
                 }
+                .listStyle(.insetGrouped)
             } else {
-                Text("Nessuna materia attiva. Importa un file per vedere le statistiche.")
-                    .foregroundStyle(.secondary)
+                ContentUnavailableView {
+                    Label("Nessuna statistica", systemImage: "chart.bar")
+                } description: {
+                    Text("Attiva una materia e completa una sessione per vedere i tuoi progressi.")
+                }
             }
         }
-        .navigationTitle("📊 Statistiche")
+        .navigationTitle("Statistiche")
+    }
+
+    // MARK: - Rows
+
+    private func summaryRow(sessions: [StudySession]) -> some View {
+        HStack(spacing: QuizTheme.Spacing.md) {
+            MetricView(value: "\(Int(StudyMetrics.averageAccuracy(sessions) * 100))%",
+                       label: "Precisione media", systemImage: "target", tint: QuizTheme.Colors.success)
+            Divider()
+            MetricView(value: "\(sessions.count)", label: "Sessioni", systemImage: "clock.arrow.circlepath")
+            Divider()
+            MetricView(value: "\(StudyMetrics.currentStreak(from: sessions))",
+                       label: "Giorni di fila", systemImage: "flame.fill", tint: QuizTheme.Colors.warning)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func categoryRow(cat: Materia.Node, materia: Materia, stats: StudyDataStore) -> some View {
+        let acc = categoryAccuracy(cat.id, materia: materia, stats: stats)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(cat.name).font(.body).lineLimit(1)
+                Spacer()
+                if acc.wrong > 0 {
+                    StatPill(text: "\(acc.wrong)", systemImage: "xmark", tint: QuizTheme.Colors.error)
+                }
+            }
+            HStack(spacing: 8) {
+                ProgressView(value: acc.attempts > 0 ? acc.accuracy : 0)
+                    .tint(acc.attempts > 0 ? QuizTheme.Colors.success : Color(.systemGray4))
+                Text(acc.attempts > 0 ? "\(Int(acc.accuracy * 100))%" : "—")
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+            }
+            Text("\(countQuestions(in: cat.id, materia: materia)) domande")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// Precisione aggregata di una categoria (sulle domande affrontate).
+    private func categoryAccuracy(_ catId: String, materia: Materia, stats: StudyDataStore)
+    -> (accuracy: Double, attempts: Int, wrong: Int) {
+        var attempts = 0, correct = 0, wrong = 0
+        for q in materia.questions where q.category == catId {
+            if let s = stats.questionStats(q.id) {
+                attempts += s.attempts
+                correct += s.correct
+                wrong += s.wrong
+            }
+        }
+        let acc = attempts > 0 ? Double(correct) / Double(attempts) : 0
+        return (acc, attempts, wrong)
     }
 
     private func countQuestions(in category: String, materia: Materia) -> Int {
@@ -93,7 +158,8 @@ struct CategoryStatsView: View {
                 }
             }
         }
-        .navigationTitle("📁 Categoria")
+        .navigationTitle("Categoria")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -131,7 +197,8 @@ struct QuestionStatsView: View {
             }
             .padding()
         }
-        .navigationTitle("❓ Dettaglio domanda")
+        .navigationTitle("Dettaglio domanda")
+        .navigationBarTitleDisplayMode(.inline)
     }
     
     // MARK: - Subviews
@@ -271,7 +338,7 @@ private struct QuestionRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(question.prompt)
                     .lineLimit(2)
-                Text(question.kind == .multiple ? "Multiple" : "Matching")
+                Text(question.kind.displayName)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -286,6 +353,60 @@ private struct QuestionRow: View {
                 BadgeCount(text: "\(s?.correct ?? 0)",
                            color: .green.opacity(0.85),
                            systemImage: "checkmark.circle.fill")
+            }
+        }
+    }
+}
+
+// MARK: - Storico sessioni
+
+/// Grafico dell'andamento della precisione nelle sessioni (ordine cronologico).
+private struct SessionTrendChart: View {
+    let sessions: [StudySession]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Andamento precisione")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Chart {
+                ForEach(Array(sessions.enumerated()), id: \.offset) { index, session in
+                    LineMark(
+                        x: .value("Sessione", index + 1),
+                        y: .value("Precisione", session.accuracy * 100)
+                    )
+                    PointMark(
+                        x: .value("Sessione", index + 1),
+                        y: .value("Precisione", session.accuracy * 100)
+                    )
+                }
+            }
+            .chartYScale(domain: 0...100)
+            .frame(height: 160)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct SessionRow: View {
+    let session: StudySession
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(session.date, format: .dateTime.day().month().hour().minute())
+                    .font(.subheadline)
+                Text(session.modeRaw)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("\(session.correct)/\(session.total)")
+                    .font(.subheadline.monospaced())
+                Text("\(Int(session.accuracy * 100))%")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(session.accuracy >= 0.6 ? .green : .orange)
             }
         }
     }

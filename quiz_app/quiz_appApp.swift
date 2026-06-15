@@ -2,9 +2,10 @@
 //  quiz_appApp.swift
 //  quiz_app
 //
-//  Created by subnetMusk on 9/1/25.
+//  Created by Leonardo Soligo on 9/1/25.
 //
 import SwiftUI
+import SwiftData
 
 @main
 struct quiz_appApp: App {
@@ -18,5 +19,6 @@ struct quiz_appApp: App {
                     appStore.refreshSubjects()
                 }
         }
+        .modelContainer(PersistenceController.shared)
     }
 }

@@ -2,21 +2,23 @@
 //  AppStore.swift
 //  quiz_app
 //
-//  Created by subnetMusk on 9/1/25.
+//  Created by Leonardo Soligo on 9/1/25.
 //
 
 import Foundation
 import Combine
+import SwiftData
 
 /// Store globale dell'app.
-/// - Tiene la materia attiva e il relativo StatsStore.
+/// - Tiene la materia attiva e il relativo StudyDataStore (SwiftData).
 /// - Espone le operazioni di import/export/flush.
 /// - Rende disponibile la lista delle materie salvate.
+@MainActor
 final class AppStore: ObservableObject {
     /// Materia attualmente attiva
     @Published private(set) var activeMateria: Materia?
-    /// Stats store associato alla materia attiva
-    @Published private(set) var statsStore: StatsStore?
+    /// Store dati (SwiftData) associato alla materia attiva
+    @Published private(set) var statsStore: StudyDataStore?
     /// Lista materie disponibili su disco (id, name)
     @Published private(set) var subjects: [(id: String, name: String)] = []
 
@@ -46,13 +48,28 @@ final class AppStore: ObservableObject {
         do {
             let materia = try QuizIO.loadMateria(id: id)
             activeMateria = materia
-            statsStore = StatsStore(subjectId: materia.meta.subject_id)
+            statsStore = makeStore(for: materia)
             UserDefaults.standard.set(materia.meta.subject_id, forKey: "last_subject_id")
             return true
         } catch {
             print("❌ selectSubject failed:", error)
             return false
         }
+    }
+
+    /// Crea lo store SwiftData per una materia, eseguendo la migrazione una-tantum
+    /// dai vecchi file `Stats_<id>.json` se i dati SwiftData non esistono ancora.
+    private func makeStore(for materia: Materia) -> StudyDataStore {
+        let store = StudyDataStore(subjectId: materia.meta.subject_id)
+        if !store.hasAnyProgress {
+            let legacy = QuizIO.loadStats(subjectId: materia.meta.subject_id)
+            if !legacy.per_question.isEmpty {
+                let map = Dictionary(uniqueKeysWithValues: materia.questions.map { ($0.id, $0.category) })
+                store.merge(legacy, replace: false, categoryMap: map)
+            }
+        }
+        WidgetBridge.update(dueCount: store.dueCount(), subjectName: materia.meta.subject_name)
+        return store
     }
 
     /// Importa una nuova materia da un file scelto dall'utente
@@ -69,29 +86,24 @@ final class AppStore: ObservableObject {
 
     // MARK: - Statistiche
 
-    /// Flush: elimina le statistiche della materia attiva
+    /// Flush: azzera i dati SwiftData della materia attiva (i file legacy restano come backup)
     func flushStats() {
-        guard let id = activeMateria?.meta.subject_id else { return }
-        do {
-            try QuizIO.flushStats(subjectId: id)
-            statsStore = StatsStore(subjectId: id) // ricarica store vuoto
-        } catch {
-            print("❌ flushStats failed:", error)
-        }
+        statsStore?.reset()
     }
 
-    /// Export: restituisce l'URL del file statistiche della materia attiva
+    /// Export: serializza i dati SwiftData in uno snapshot JSON e ne restituisce l'URL
     func exportStatsURL() -> URL? {
-        guard let id = activeMateria?.meta.subject_id else { return nil }
-        return QuizIO.exportStatsURL(subjectId: id)
+        guard let store = statsStore else { return nil }
+        return try? QuizIO.saveStats(store.exportSnapshot())
     }
 
-    /// Importa statistiche esterne e le unisce o sostituisce
+    /// Importa statistiche esterne e le unisce (o sostituisce) nei dati SwiftData
     func importStats(from url: URL, replace: Bool = false) {
-        guard let id = activeMateria?.meta.subject_id else { return }
+        guard let store = statsStore, let materia = activeMateria else { return }
         do {
-            let merged = try QuizIO.importStats(from: url, expectedSubjectId: id, replace: replace)
-            statsStore?.replace(with: merged)
+            let incoming = try QuizIO.decodeStats(from: url, expectedSubjectId: materia.meta.subject_id)
+            let map = Dictionary(uniqueKeysWithValues: materia.questions.map { ($0.id, $0.category) })
+            store.merge(incoming, replace: replace, categoryMap: map)
         } catch {
             print("❌ importStats failed:", error)
         }
@@ -103,6 +115,7 @@ final class AppStore: ObservableObject {
     func deleteSubject(id: String) {
         do {
             try QuizIO.deleteSubject(subjectId: id)
+            StudyDataStore(subjectId: id).reset() // purge dati SwiftData della materia
             refreshSubjects()
             // Se la materia cancellata era quella attiva, resetta
             if activeMateria?.meta.subject_id == id {
@@ -113,11 +126,13 @@ final class AppStore: ObservableObject {
             print("❌ deleteSubject failed:", error)
         }
     }
-    
+
     /// Elimina tutte le materie
     func deleteAllSubjects() {
         do {
             try QuizIO.deleteAllSubjects()
+            try? PersistenceController.mainContext.delete(model: QuestionProgress.self)
+            try? PersistenceController.mainContext.delete(model: StudySession.self)
             refreshSubjects()
             activeMateria = nil
             statsStore = nil

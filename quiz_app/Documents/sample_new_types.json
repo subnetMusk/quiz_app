@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "subject_id": "auto:sha256",
+    "subject_name": "Esempi nuovi tipi (Fase 1)",
+    "version": 1
+  },
+  "config": {
+    "scales_questions": [5, "all"],
+    "scales_category": [3, "all"],
+    "scales_errors": [3, "all"],
+    "feedback": "immediate"
+  },
+  "taxonomy": [
+    { "id": "generale", "name": "Generale" }
+  ],
+  "questions": [
+    {
+      "id": "tfm001",
+      "category": "generale",
+      "kind": "trueFalseMotivated",
+      "prompt": "Il protocollo HTTP è privo di stato (stateless).",
+      "answer": true,
+      "motivationOptions": [
+        { "id": 0, "text": "Ogni richiesta è indipendente: il server non conserva di per sé lo stato tra una richiesta e l'altra.", "isCorrect": true },
+        { "id": 1, "text": "Perché HTTP non usa mai i cookie.", "isCorrect": false },
+        { "id": 2, "text": "Perché HTTP cripta sempre i dati end-to-end.", "isCorrect": false }
+      ],
+      "wrongAnswerExplanation": "HTTP è stateless: lo stato (sessioni) viene ricostruito sopra il protocollo, tipicamente con cookie o token.",
+      "explanation": "Lo stato applicativo si appoggia a meccanismi esterni (cookie/token), ma il protocollo in sé non mantiene memoria tra richieste."
+    },
+    {
+      "id": "clz001",
+      "category": "generale",
+      "kind": "clozeWordBank",
+      "prompt": "Completa il testo sui metodi HTTP.",
+      "text": "Il metodo {{0}} espone i parametri nella URL, mentre {{1}} li invia nel corpo della richiesta.",
+      "blanks": [
+        { "id": 0, "answers": ["GET"] },
+        { "id": 1, "answers": ["POST"] }
+      ],
+      "wordBank": ["GET", "POST", "PUT", "query string", "cookie"],
+      "shuffleWordBank": true,
+      "reuseWords": false,
+      "explanation": "GET passa i dati nella query string della URL; POST li trasmette nel body."
+    },
+    {
+      "id": "sht001",
+      "category": "generale",
+      "kind": "shortAnswer",
+      "prompt": "Qual è il codice di stato HTTP per 'Not Found'?",
+      "acceptedAnswers": ["404", "404 Not Found"],
+      "caseSensitive": false,
+      "explanation": "Il 404 indica che la risorsa richiesta non è stata trovata sul server."
+    },
+    {
+      "id": "ord001",
+      "category": "generale",
+      "kind": "ordered",
+      "prompt": "Ordina le fasi del ciclo richiesta/risposta HTTP, dalla prima all'ultima.",
+      "items": [
+        "Il client risolve il nome DNS",
+        "Il client apre la connessione TCP",
+        "Il client invia la richiesta HTTP",
+        "Il server elabora e invia la risposta",
+        "Il client riceve e mostra la risposta"
+      ],
+      "explanation": "DNS → connessione → richiesta → elaborazione/risposta → rendering lato client."
+    },
+    {
+      "id": "cal001",
+      "category": "generale",
+      "kind": "calculation",
+      "prompt": "Un elemento ha font-size 16px e padding pari a 1.5em su ogni lato. Quanti px di padding ha in totale in orizzontale?",
+      "givens": ["font-size = 16px", "padding orizzontale = 1.5em per lato"],
+      "answerFormat": "numero in px",
+      "acceptedAnswers": ["48", "48px"],
+      "tolerance": 0,
+      "expectedSteps": [
+        "1.5em = 1.5 × 16px = 24px per lato",
+        "Padding orizzontale totale = 24px (sinistra) + 24px (destra) = 48px"
+      ],
+      "explanation": "em è relativo al font-size dell'elemento: 1.5em = 24px, per due lati fa 48px."
+    }
+  ]
+}

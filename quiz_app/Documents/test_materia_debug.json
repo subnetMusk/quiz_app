@@ -73,6 +73,7 @@
       "subcategory": "sub_a1",
       "kind": "multiple",
       "prompt": "Domanda A1",
+      "explanation": "La risposta corretta è la A1.1 perché è l'unica coerente con la definizione vista a lezione.",
       "options": [
         {
           "id": 0,

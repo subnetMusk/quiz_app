@@ -2,7 +2,7 @@
 //  QuizIO.swift
 //  quiz_app
 //
-//  Created by subnetMusk on 9/1/25.
+//  Created by Leonardo Soligo on 9/1/25.
 //
 
 import Foundation
@@ -241,6 +241,17 @@ enum QuizIO {
         let merged = replace ? incoming : current.merging(with: incoming)
         try saveStats(merged)
         return merged
+    }
+
+    /// Decodifica e valida un file statistiche esterno senza scriverlo su disco
+    /// (il merge avviene poi nello store SwiftData).
+    static func decodeStats(from pickedURL: URL, expectedSubjectId: String) throws -> StatsFile {
+        let data = try Data(contentsOf: pickedURL)
+        let incoming = try JSONDecoder().decode(StatsFile.self, from: data)
+        guard incoming.meta.subject_id == expectedSubjectId else {
+            throw MateriaError.wrongSubject
+        }
+        return incoming
     }
 
     /// Restituisce l'URL del file statistiche da condividere (se esiste).
