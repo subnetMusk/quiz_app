@@ -14,6 +14,10 @@ final class StudyDataStore {
     private let context: ModelContext
     let subjectId: String
 
+    /// Notifica (su MainActor) ogni volta che i dati vengono salvati, così le viste che
+    /// leggono dallo store possono invalidarsi e ricalcolare progresso/statistiche.
+    var onChange: (() -> Void)?
+
     init(context: ModelContext, subjectId: String) {
         self.context = context
         self.subjectId = subjectId
@@ -55,7 +59,10 @@ final class StudyDataStore {
         return (try? context.fetch(d)) ?? []
     }
 
-    private func save() { try? context.save() }
+    private func save() {
+        try? context.save()
+        onChange?()
+    }
 
     // MARK: - Applica risposta (counters + scheduling)
 
@@ -160,6 +167,16 @@ final class StudyDataStore {
         )
     }
 
+    /// Statistiche per concetto (`canonicalPointId`) di una domanda con pool randomizzato.
+    func conceptStats(_ questionId: String) -> [String: ConceptStats] {
+        progress(for: questionId)?.conceptStats ?? [:]
+    }
+
+    /// Conteggio dei `variantKind` (tipi di distrattore) selezionati per errore in una domanda.
+    func variantWrong(_ questionId: String) -> [String: Int] {
+        progress(for: questionId)?.variantWrong ?? [:]
+    }
+
     // MARK: - Ripetizione spaziata
 
     /// Id delle domande "in scadenza" (già viste) ordinate per dueDate crescente.
@@ -182,6 +199,54 @@ final class StudyDataStore {
     func seenQuestionIds() -> Set<String> {
         Set(allProgress().map { $0.questionId })
     }
+
+#if DEBUG
+    /// Popola dati plausibili (progresso + concetti + sessioni) per screenshot/demo.
+    /// Idempotente: azzera e riseed. Non usato in produzione.
+    func seedMockData(materia: Materia) {
+        for p in allProgress() { context.delete(p) }
+        for s in allSessions() { context.delete(s) }
+        var rng = SystemRandomNumberGenerator()
+        let now = Date(); let cal = Calendar.current
+
+        for (i, q) in materia.questions.enumerated() {
+            if i % 5 == 4 { continue } // ~80% affrontate
+            let p = QuestionProgress(subjectId: subjectId, questionId: q.id, category: q.category)
+            let attempts = Int.random(in: 1...4, using: &rng)
+            var c = 0, inc = 0, w = 0
+            for _ in 0..<attempts {
+                let r = Int.random(in: 0...9, using: &rng)
+                if r < 6 { c += 1 } else if r < 8 { inc += 1 } else { w += 1 }
+            }
+            p.attempts = attempts; p.correct = c; p.incomplete = inc; p.wrong = w
+            p.repetitions = c
+            p.lastReviewed = cal.date(byAdding: .day, value: -Int.random(in: 0...10, using: &rng), to: now)
+            p.dueDate = cal.date(byAdding: .day, value: Int.random(in: -3...7, using: &rng), to: now) ?? now
+            if let pool = q.optionPool, (w + inc) > 0 {
+                var concepts: [String: ConceptStats] = [:]
+                for e in pool.entries.prefix(4) {
+                    if e.isCorrect { concepts[e.canonicalPointId, default: ConceptStats()].missedCorrect += Int.random(in: 0...2, using: &rng) }
+                    else { concepts[e.canonicalPointId, default: ConceptStats()].wrongSelected += Int.random(in: 0...2, using: &rng) }
+                }
+                p.conceptStats = concepts.filter { $0.value.missedCorrect + $0.value.wrongSelected > 0 }
+            }
+            context.insert(p)
+        }
+
+        for d in 0..<8 {
+            let total = Int.random(in: 8...15, using: &rng)
+            let c = Int.random(in: (total / 2)...total, using: &rng)
+            let inc = Int.random(in: 0...(total - c), using: &rng)
+            let w = max(0, total - c - inc)
+            let s = StudySession(subjectId: subjectId, modeRaw: "Ripasso intelligente", category: nil,
+                                 total: total, correct: c, incomplete: inc, wrong: w,
+                                 durationSeconds: Double(Int.random(in: 120...420, using: &rng)),
+                                 date: cal.date(byAdding: .day, value: -d, to: now) ?? now)
+            context.insert(s)
+        }
+        save()
+    }
+#endif
 
     // MARK: - Storico sessioni
 

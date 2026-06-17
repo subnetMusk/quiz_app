@@ -21,6 +21,9 @@ final class AppStore: ObservableObject {
     @Published private(set) var statsStore: StudyDataStore?
     /// Lista materie disponibili su disco (id, name)
     @Published private(set) var subjects: [(id: String, name: String)] = []
+    /// Contatore bumpato a ogni salvataggio dello store: forza il re-render delle viste
+    /// (Oggi, Teoria, Statistiche) quando cambiano progresso o storico sessioni.
+    @Published private(set) var dataVersion: Int = 0
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -33,6 +36,19 @@ final class AppStore: ObservableObject {
         if let last = UserDefaults.standard.string(forKey: "last_subject_id") {
             _ = selectSubject(id: last)
         }
+
+        #if DEBUG
+        // Demo/screenshot: `--seed-mock` popola statistiche plausibili su una materia (preferisce TecWeb).
+        if CommandLine.arguments.contains("--seed-mock") {
+            if let tw = subjects.first(where: { $0.name.localizedCaseInsensitiveContains("Tecnologie") }) ?? subjects.first {
+                _ = selectSubject(id: tw.id)
+            }
+            if let m = activeMateria, let store = statsStore {
+                store.seedMockData(materia: m)
+                WidgetBridge.update(dueCount: store.dueCount(), subjectName: m.meta.subject_name)
+            }
+        }
+        #endif
     }
 
     // MARK: - Materie
@@ -61,6 +77,7 @@ final class AppStore: ObservableObject {
     /// dai vecchi file `Stats_<id>.json` se i dati SwiftData non esistono ancora.
     private func makeStore(for materia: Materia) -> StudyDataStore {
         let store = StudyDataStore(subjectId: materia.meta.subject_id)
+        store.onChange = { [weak self] in self?.dataVersion &+= 1 }
         if !store.hasAnyProgress {
             let legacy = QuizIO.loadStats(subjectId: materia.meta.subject_id)
             if !legacy.per_question.isEmpty {

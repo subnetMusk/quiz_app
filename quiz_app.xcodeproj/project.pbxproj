@@ -68,22 +68,16 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A724C11D2E65FE2400883261 /* quiz_app */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = quiz_app;
 			sourceTree = "<group>";
 		};
 		A7DECAF12E660EF90031E075 /* quiz_appTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = quiz_appTests;
 			sourceTree = "<group>";
 		};
 		A7DECAF22E660EF90031E075 /* quiz_appUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = quiz_appUITests;
 			sourceTree = "<group>";
 		};
@@ -139,7 +133,6 @@
 				34008910E498D830E392C49D /* Info.plist */,
 				61BF78CDBD2B2E1650D475FE /* QuizWidget.entitlements */,
 			);
-			name = QuizWidget;
 			path = QuizWidget;
 			sourceTree = "<group>";
 		};

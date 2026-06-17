@@ -8,12 +8,13 @@
 import SwiftUI
 
 enum AppTab: Hashable {
-    case today, quiz, stats, library
+    case today, quiz, theory, stats, library
 }
 
 struct MainAppView: View {
     @ObservedObject var app: AppStore
     @State private var selection: AppTab = .today
+    @AppStorage("app_theme") private var appTheme: String = AppTheme.system.rawValue
 
     var body: some View {
         TabView(selection: $selection) {
@@ -30,6 +31,12 @@ struct MainAppView: View {
             .tag(AppTab.quiz)
 
             NavigationStack {
+                TheoryView(app: app)
+            }
+            .tabItem { Label("Teoria", systemImage: "book.closed") }
+            .tag(AppTab.theory)
+
+            NavigationStack {
                 StatsView(app: app)
             }
             .tabItem { Label("Statistiche", systemImage: "chart.bar") }
@@ -42,6 +49,7 @@ struct MainAppView: View {
             .tag(AppTab.library)
         }
         .tint(QuizTheme.Colors.primary)
+        .preferredColorScheme(AppTheme(rawValue: appTheme)?.colorScheme)
     }
 }
 

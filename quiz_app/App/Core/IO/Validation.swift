@@ -108,10 +108,16 @@ func validateMateriaData(_ data: Data) throws -> Materia {
     
     // Validazione taxonomy
     try validateTaxonomyStructure(materia.taxonomy)
+
+    // Validazione teoria opzionale
+    try validateTheoryStructure(materia.theory, taxonomy: materia.taxonomy)
     
     // Validazione domande
     try validateQuestionsStructure(materia.questions, taxonomy: materia.taxonomy)
-    
+
+    // Validazione collegamenti modalità guidata (sectionId/difficulty)
+    try validateGuidedLinks(materia.questions, theory: materia.theory)
+
     // --- Calcolo e validazione hash ---
     let validatedMateria = try validateAndUpdateHash(materia, originalData: data)
     
@@ -156,6 +162,74 @@ private func validateTaxonomyStructure(_ taxonomy: [Materia.Node]) throws {
         }
         guard !node.name.isEmpty else {
             throw MateriaError.invalidQuestionStructure("taxonomy[\(index)].name è vuoto")
+        }
+    }
+}
+
+/// Valida i notebook di teoria opzionali.
+private func validateTheoryStructure(_ theory: [TheoryNote]?, taxonomy: [Materia.Node]) throws {
+    guard let theory else { return }
+    let validCategories = Set(taxonomy.map { $0.id })
+    var seen = Set<String>()
+
+    for (index, note) in theory.enumerated() {
+        let prefix = "theory[\(index)]"
+        guard !note.categoryId.isEmpty else {
+            throw MateriaError.invalidQuestionStructure("\(prefix): categoryId vuoto")
+        }
+        guard validCategories.contains(note.categoryId) else {
+            throw MateriaError.invalidQuestionStructure("\(prefix): categoryId '\(note.categoryId)' non trovato in taxonomy")
+        }
+        guard seen.insert(note.categoryId).inserted else {
+            throw MateriaError.invalidQuestionStructure("\(prefix): notebook duplicato per categoryId '\(note.categoryId)'")
+        }
+        guard !note.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw MateriaError.invalidQuestionStructure("\(prefix): title vuoto")
+        }
+        guard !note.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw MateriaError.invalidQuestionStructure("\(prefix): body vuoto")
+        }
+        if let minutes = note.estimatedMinutes, minutes < 1 {
+            throw MateriaError.invalidQuestionStructure("\(prefix): estimatedMinutes deve essere positivo")
+        }
+        // Sezioni (modalità guidata): id non vuoto/unico, title e body non vuoti.
+        if let sections = note.sections {
+            var sectionIds = Set<String>()
+            for (si, sec) in sections.enumerated() {
+                let sp = "\(prefix).sections[\(si)]"
+                guard !sec.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    throw MateriaError.invalidQuestionStructure("\(sp): id vuoto")
+                }
+                guard sectionIds.insert(sec.id).inserted else {
+                    throw MateriaError.invalidQuestionStructure("\(sp): id sezione duplicato '\(sec.id)'")
+                }
+                guard !sec.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    throw MateriaError.invalidQuestionStructure("\(sp): title vuoto")
+                }
+                guard !sec.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    throw MateriaError.invalidQuestionStructure("\(sp): body vuoto")
+                }
+            }
+        }
+    }
+}
+
+/// Valida i collegamenti della modalità guidata: `difficulty` in 1...3 e `sectionId` esistente
+/// nella teoria della stessa categoria.
+private func validateGuidedLinks(_ questions: [Question], theory: [TheoryNote]?) throws {
+    var sectionsByCategory: [String: Set<String>] = [:]
+    for note in theory ?? [] {
+        sectionsByCategory[note.categoryId] = Set((note.sections ?? []).map { $0.id })
+    }
+    for (i, q) in questions.enumerated() {
+        if let d = q.difficulty, !(1...3).contains(d) {
+            throw MateriaError.invalidQuestionStructure("questions[\(i)] (\(q.id)): difficulty \(d) fuori range 1...3")
+        }
+        if let sid = q.sectionId {
+            let valid = sectionsByCategory[q.category] ?? []
+            guard valid.contains(sid) else {
+                throw MateriaError.invalidQuestionStructure("questions[\(i)] (\(q.id)): sectionId '\(sid)' non esiste nella teoria della categoria '\(q.category)'")
+            }
         }
     }
 }

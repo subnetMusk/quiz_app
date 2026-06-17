@@ -15,6 +15,8 @@ enum QuizSessionMode: String, CaseIterable, Identifiable {
     case errors = "Errori"
     case errorsByCategory = "Errori per categoria"
     case smart = "Ripasso intelligente"
+    /// Flusso Teoria→Quiz: domande chiave (`primary`) dell'argomento + le più sbagliate.
+    case topicPrimary = "Per argomento"
 
     var id: String { rawValue }
 }
@@ -52,6 +54,35 @@ struct Materia: Codable, Equatable {
     var config: Config
     var taxonomy: [Node]
     var questions: [Question]
+    /// Notebook di sola teoria, uno per argomento della tassonomia (facoltativo).
+    var theory: [TheoryNote]? = nil
+}
+
+/// Notebook di teoria per un argomento (stessa divisione della tassonomia delle domande).
+struct TheoryNote: Codable, Identifiable, Equatable {
+    /// Combacia con `Materia.Node.id` (la categoria delle domande).
+    var categoryId: String
+    var title: String
+    /// Riga/paragrafo introduttivo breve (per card e schermata iniziale della modalità guidata).
+    var intro: String? = nil
+    /// Corpo in Markdown del notebook intero, pronto per la lettura ("Leggi tutto").
+    var body: String
+    /// Sezioni ordinate (dal generale allo specifico) per la modalità di studio guidata.
+    var sections: [TheorySection]? = nil
+    /// Minuti di lettura stimati (facoltativo).
+    var estimatedMinutes: Int? = nil
+
+    var id: String { categoryId }
+}
+
+/// Sezione di un notebook: blocco di teoria mirato a un sotto-concetto, usato dalla modalità guidata.
+struct TheorySection: Codable, Identifiable, Equatable {
+    var id: String
+    var title: String
+    /// Riga breve per le card/anteprime (facoltativa).
+    var summary: String? = nil
+    /// Prosa markdown della sezione (riempita in seguito; renderizzata col renderer a blocchi).
+    var body: String
 }
 
 // MARK: - Scale numeriche o "all"
@@ -77,7 +108,7 @@ enum Scale: Codable, Hashable, Identifiable, Equatable {
             switch mode {
             case .generic, .errors, .smart:
                 return materia.questions.count
-            case .byCategory, .errorsByCategory:
+            case .byCategory, .errorsByCategory, .topicPrimary:
                 if let category = category {
                     return materia.questions(category: category).count
                 }
@@ -209,6 +240,28 @@ public struct PoolEntry: Codable, Identifiable, Hashable, Equatable {
     public var explanation: String? = nil
 }
 
+public extension PoolEntry {
+    /// Prefissi-cornice usati nei dati come varianti di parafrasi; in UI vanno tolti per frasi dirette.
+    private static let framingPrefixes = [
+        "La formulazione sostiene che ",
+        "Il punto da valutare è che ",
+        "La formulazione descrive ",
+        "La formulazione afferma che "
+    ]
+
+    /// Testo "diretto" da mostrare: rimuove il prefisso-cornice e ripristina la maiuscola iniziale
+    /// (i prefissi minuscolizzavano la prima lettera, es. "…che gET…" → "GET…").
+    var displayText: String {
+        var t = text
+        for p in PoolEntry.framingPrefixes where t.hasPrefix(p) {
+            t = String(t.dropFirst(p.count))
+            break
+        }
+        guard let first = t.first else { return t }
+        return first.uppercased() + t.dropFirst()
+    }
+}
+
 /// Intervallo chiuso `[min, max]` per il numero di corrette da mostrare.
 public struct CountRange: Codable, Hashable, Equatable {
     public var min: Int
@@ -238,6 +291,12 @@ public struct Question: Codable, Identifiable, Hashable, Equatable {
     public var category: String
     public var subcategory: String?
     public var kind: QuestionKind
+    /// Domanda "chiave" dell'argomento: usata dal flusso Teoria→Quiz (facoltativo).
+    public var primary: Bool? = nil
+    /// Sezione di teoria a cui la domanda è collegata (modalità guidata; combacia con `TheorySection.id`).
+    public var sectionId: String? = nil
+    /// Difficoltà 1 (base) … 3 (avanzato), per la progressione nella modalità guidata.
+    public var difficulty: Int? = nil
     public var prompt: String
     public var code: String?              // opzionale (blocchi di codice)
     public var explanation: String?       // opzionale (spiegazione mostrata nel feedback)
@@ -292,7 +351,9 @@ public extension Question {
     /// `true` se la domanda è puramente formativa (non concorre a statistiche/SM-2 né al punteggio
     /// di sessione). Un caso/media è formativo solo se TUTTE le sue sotto-domande lo sono.
     var isFormative: Bool {
-        if kind.isFormativeAnswer { return true }
+        // Una domanda "aperta" con una checklist di correzione (optionPool) è ora valutabile:
+        // resta puramente formativa solo se non ha alcun pool su cui calcolare un esito.
+        if kind.isFormativeAnswer { return optionPool == nil }
         if kind.isComposite {
             let subs = subquestions ?? []
             return subs.isEmpty ? true : subs.allSatisfy { $0.isFormative }
@@ -322,6 +383,35 @@ extension Materia {
             }
             return true
         }
+    }
+
+    /// Domande candidate per il flusso Teoria→Quiz:
+    /// domande curate come `primary` più domande della categoria con errori sopra soglia dinamica.
+    func topicPrimaryCandidates(category id: String, wrongCounts: [String: Int]) -> [Question] {
+        let pool = questions(category: id)
+        let positiveWrongs = pool.compactMap { wrongCounts[$0.id] }.filter { $0 > 0 }
+        let threshold = dynamicWrongThreshold(positiveWrongs)
+
+        return pool
+            .filter { q in
+                let wrong = wrongCounts[q.id] ?? 0
+                return q.primary == true || (wrong > 0 && wrong >= threshold)
+            }
+            .sorted { lhs, rhs in
+                let lw = wrongCounts[lhs.id] ?? 0
+                let rw = wrongCounts[rhs.id] ?? 0
+                if lw != rw { return lw > rw }
+                if (lhs.primary == true) != (rhs.primary == true) {
+                    return lhs.primary == true
+                }
+                return lhs.id < rhs.id
+            }
+    }
+
+    private func dynamicWrongThreshold(_ wrongs: [Int]) -> Int {
+        guard !wrongs.isEmpty else { return Int.max }
+        let average = Double(wrongs.reduce(0, +)) / Double(wrongs.count)
+        return max(1, Int(average.rounded(.up)))
     }
     
     /// Restituisce l'elenco delle categorie disponibili

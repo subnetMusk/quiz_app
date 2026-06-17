@@ -19,6 +19,11 @@ struct QuizView: View {
     let mode: QuizSessionMode
     let category: String? // for byCategory modes
     let count: Int
+    /// Domande imposte dall'esterno (modalità guidata): se presenti, bypassano il pool del `mode`.
+    var presetQuestions: [Question]? = nil
+    /// Se valorizzato, il riepilogo mostra "Continua" che chiama questa closure invece di uscire
+    /// (usato dalla modalità guidata per avanzare alla sezione successiva).
+    var onComplete: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -27,6 +32,7 @@ struct QuizView: View {
     @State private var index: Int = 0
     @State private var finished: Bool = false
     @State private var endedEarly: Bool = false   // riepilogo da "Termina" (sessione parziale)
+    @State private var sessionDuration: TimeInterval = 0  // durata catturata alla chiusura
 
     // Stato risposta corrente (multiple / matching)
     @State private var selectedOptions = Set<Int>()       // per multiple
@@ -104,7 +110,8 @@ struct QuizView: View {
         }
         .navigationTitle(navigationTitle)
         .toolbar {
-            if !finished && !items.isEmpty {
+            // In modalità guidata (onComplete) la progressione è gestita dal flusso: niente "Termina".
+            if onComplete == nil && !finished && !items.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Termina") { endSession() }
                 }
@@ -141,6 +148,7 @@ struct QuizView: View {
         let incomplete = sessionResults.filter { $0.result == .incomplete }.count
         let wrong = sessionResults.filter { $0.result == .wrong }.count
         let duration = sessionStart.map { Date().timeIntervalSince($0) } ?? 0
+        sessionDuration = duration
         stats.recordSession(modeRaw: mode.rawValue,
                             category: category,
                             total: sessionResults.count,
@@ -220,6 +228,21 @@ struct QuizView: View {
     }
 
     private func buildSession() {
+        // Modalità guidata: domande imposte dall'esterno, niente pool/shuffle.
+        if let preset = presetQuestions {
+            items = preset
+            index = 0
+            finished = preset.isEmpty
+            endedEarly = false
+            sessionResults = []
+            sessionStart = Date()
+            sessionRecorded = false
+            generatePoolSamples()
+            resetAnswerState()
+            quizLog.info("buildSession(preset): count=\(items.count)")
+            return
+        }
+
         // 1) Sorgente domande
         let pool: [Question]
         switch mode {
@@ -235,10 +258,14 @@ struct QuizView: View {
             pool = questionsForTopErrors(limit: count, category: cat)
         case .smart:
             pool = smartReviewPool()
+        case .topicPrimary:
+            guard let cat = category else { items = []; return }
+            pool = topicPrimaryPool(category: cat)
         }
 
-        // 2) Campionamento (count). In modalità smart l'ordine è già una priorità: niente shuffle.
-        let chosen = mode == .smart
+        // 2) Campionamento (count). In smart/topicPrimary l'ordine è già una priorità: niente shuffle.
+        let ordered = (mode == .smart || mode == .topicPrimary)
+        let chosen = ordered
             ? Array(pool.prefix(count))
             : Array(pool.shuffled().prefix(count))
         items = chosen
@@ -354,8 +381,20 @@ struct QuizView: View {
         case .calculation:
             finishVerify(q, evaluateCalculation(question: q, text: textAnswer))
         case .openRubric, .constructedResponse:
-            // Formativi: mostra la rubrica, nessun esito registrato in stats/SM-2.
-            formativeRevealed = true
+            // Con checklist di correzione (pool) la domanda è valutabile: registra l'esito e
+            // mostra comunque la rubrica per il confronto sulla risposta scritta.
+            if q.optionPool != nil {
+                let shown = poolSamples[q.id] ?? []
+                let detail = evaluatePoolSelection(shown: shown, selected: poolSelected)
+                feedback = detail.result
+                feedbackDetail = nil
+                sessionResults.append((questionId: q.id, result: detail.result))
+                stats.applyPoolDelta(for: q, detail: detail)
+                formativeRevealed = true
+            } else {
+                // Nessun pool: resta formativa (rubrica di autovalutazione, nessun esito).
+                formativeRevealed = true
+            }
         case .caseStudy, .mediaAnalysis:
             if q.isFormative {
                 // Tutte le sotto-domande sono formative → solo rubrica, niente esito.
@@ -436,6 +475,14 @@ struct QuizView: View {
         return dueSeen + newOnes
     }
 
+    /// Pool per il flusso Teoria→Quiz: prima le più sbagliate sopra soglia dinamica,
+    /// includendo sempre le domande curate come `primary` per l'argomento.
+    private func topicPrimaryPool(category: String) -> [Question] {
+        let categoryPool = materia.questions(category: category)
+        let picked = materia.topicPrimaryCandidates(category: category, wrongCounts: stats.wrongCounts())
+        return fill(picked, upTo: min(count, categoryPool.count), from: categoryPool)
+    }
+
     /// Completa `picked` fino a `limit` domande pescando casualmente da `pool`
     /// (escludendo quelle già presenti), preservando l'ordine di `picked`.
     private func fill(_ picked: [Question], upTo limit: Int, from pool: [Question]) -> [Question] {
@@ -497,22 +544,35 @@ struct QuizView: View {
 
                 // Azioni
                 VStack(spacing: 12) {
-                    NavigationLink {
-                        QuizView(materia: materia, stats: stats, mode: mode, category: category, count: count)
-                    } label: {
-                        Label("Rifai una sessione", systemImage: "arrow.clockwise.circle")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding()
+                    if let onComplete {
+                        // Modalità guidata: un solo pulsante per proseguire il percorso.
+                        Button {
+                            onComplete()
+                        } label: {
+                            Label("Continua", systemImage: "arrow.right.circle.fill")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    } else {
+                        NavigationLink {
+                            QuizView(materia: materia, stats: stats, mode: mode, category: category, count: count)
+                        } label: {
+                            Label("Rifai una sessione", systemImage: "arrow.clockwise.circle")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                        }
+                        .buttonStyle(.borderedProminent)
+
+                        Button("Fine") {
+                            // Torna al menu principale dismissing questa vista
+                            dismiss()
+                        }
+                        .buttonStyle(.bordered)
+                        .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
-                    
-                    Button("Fine") {
-                        // Torna al menu principale dismissing questa vista
-                        dismiss()
-                    }
-                    .buttonStyle(.bordered)
-                    .frame(maxWidth: .infinity)
                 }
                 .padding(.bottom)
             }
@@ -555,49 +615,93 @@ struct QuizView: View {
             let correctAnswers = sessionResults.filter { $0.result == .correct }.count
             let incompleteAnswers = sessionResults.filter { $0.result == .incomplete }.count
             let wrongAnswers = sessionResults.filter { $0.result == .wrong }.count
+            // Precisione: solo le corrette valgono 1; incomplete e sbagliate valgono 0.
             let accuracy = Double(correctAnswers) / Double(answered) * 100
+            let warn = QuizTheme.Colors.warning
+            let verdict = performanceVerdict(accuracy)
 
             VStack(spacing: 16) {
-                Text("Risultati Sessione")
-                    .font(.headline.bold())
-
-                HStack(spacing: 20) {
-                    statBadge(title: "Corrette", value: "\(correctAnswers)", color: .green)
-                    if incompleteAnswers > 0 {
-                        statBadge(title: "Incomplete", value: "\(incompleteAnswers)", color: .yellow)
-                    }
-                    statBadge(title: "Sbagliate", value: "\(wrongAnswers)", color: .red)
-                    statBadge(title: "Precisione", value: "\(Int(accuracy))%", color: .blue)
+                // Headline: punteggio + giudizio
+                VStack(spacing: 2) {
+                    Text("\(Int(accuracy.rounded()))%")
+                        .font(.system(size: 46, weight: .bold, design: .rounded))
+                        .foregroundColor(verdict.color)
+                    Text(verdict.label)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(verdict.color)
+                    Text("\(correctAnswers) corrette su \(answered) domande svolte")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
-                // Barra di progresso visuale (su domande svolte)
+                // Barra stratificata (su domande svolte)
                 GeometryReader { geometry in
                     HStack(spacing: 0) {
-                        Rectangle()
-                            .fill(.green)
+                        Rectangle().fill(.green)
                             .frame(width: geometry.size.width * CGFloat(correctAnswers) / CGFloat(answered))
-
                         if incompleteAnswers > 0 {
-                            Rectangle()
-                                .fill(.yellow)
+                            Rectangle().fill(warn)
                                 .frame(width: geometry.size.width * CGFloat(incompleteAnswers) / CGFloat(answered))
                         }
-
-                        Rectangle()
-                            .fill(.red)
+                        Rectangle().fill(.red)
                             .frame(width: geometry.size.width * CGFloat(wrongAnswers) / CGFloat(answered))
                     }
                 }
-                .frame(height: 8)
-                .background(Color(.systemGray5))
-                .cornerRadius(4)
+                .frame(height: 10)
+                .clipShape(Capsule())
+                .background(Capsule().fill(Color(.systemGray5)))
+
+                // Conteggi
+                HStack(spacing: 20) {
+                    statBadge(title: "Corrette", value: "\(correctAnswers)", color: .green)
+                    if incompleteAnswers > 0 {
+                        statBadge(title: "Incomplete", value: "\(incompleteAnswers)", color: warn)
+                    }
+                    statBadge(title: "Sbagliate", value: "\(wrongAnswers)", color: .red)
+                }
+
+                Divider()
+
+                // Tempo
+                HStack {
+                    metricRow(icon: "clock", label: "Tempo", value: formattedDuration(sessionDuration))
+                    Spacer()
+                    metricRow(icon: "timer", label: "Media",
+                              value: "\(formattedDuration(sessionDuration / Double(answered)))/dom.")
+                }
+                .font(.subheadline)
             }
             .padding()
             .background(Color(.secondarySystemBackground))
             .cornerRadius(12)
         }
     }
-    
+
+    /// Giudizio qualitativo in base alla precisione, coerente con i colori dell'app.
+    private func performanceVerdict(_ accuracy: Double) -> (label: String, color: Color) {
+        switch accuracy {
+        case 85...:    return ("Ottimo lavoro", .green)
+        case 60..<85:  return ("Buon risultato", QuizTheme.Colors.warning)
+        default:       return ("Da ripassare", .red)
+        }
+    }
+
+    /// Formatta una durata in modo compatto (es. "1m 20s", "45s").
+    private func formattedDuration(_ t: TimeInterval) -> String {
+        let s = max(0, Int(t.rounded()))
+        if s < 60 { return "\(s)s" }
+        let m = s / 60, r = s % 60
+        return r == 0 ? "\(m)m" : "\(m)m \(r)s"
+    }
+
+    private func metricRow(icon: String, label: String, value: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).foregroundStyle(.secondary)
+            Text(label).foregroundStyle(.secondary)
+            Text(value).fontWeight(.semibold)
+        }
+    }
+
     private func statBadge(title: String, value: String, color: Color) -> some View {
         VStack(spacing: 4) {
             Text(value)
@@ -615,9 +719,10 @@ struct QuizView: View {
                 Text(materia.displayName(forCategory: category, sub: nil))
                     .font(.subheadline.weight(.medium))
                 Spacer()
-                Text("\(correct)/\(total)")
+                let pct = total > 0 ? Int((Double(correct) / Double(total) * 100).rounded()) : 0
+                Text("\(correct)/\(total) · \(pct)%")
                     .font(.subheadline.monospaced().weight(.semibold))
-                    .foregroundStyle(correct == total ? .green : (correct == 0 ? .red : .orange))
+                    .foregroundStyle(correct == total ? .green : (correct == 0 ? .red : QuizTheme.Colors.warning))
             }
             
             // Progress bar per categoria
@@ -705,12 +810,12 @@ private struct QuestionCard: View {
                 CalculationView(question: question, text: $textAnswer)
 
             case .openRubric:
-                OpenRubricView(question: question, text: $textAnswer,
+                OpenRubricView(question: question,
                                poolShown: poolSamples[question.id], poolSelected: $poolSelected,
                                revealed: revealed)
 
             case .constructedResponse:
-                ConstructedResponseView(question: question, text: $textAnswer,
+                ConstructedResponseView(question: question,
                                         poolShown: poolSamples[question.id], poolSelected: $poolSelected,
                                         revealed: revealed)
 
@@ -1072,8 +1177,10 @@ private struct FeedbackBanner: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(accessibilityText)
 
-                // Risposta corretta per domande sbagliate o incomplete
-                if result != .correct, let q = question {
+                // Risposta corretta per domande sbagliate o incomplete.
+                // Esclusi i tipi aperti: lì le opzioni corrette e la spiegazione sono già
+                // mostrate dalle card del pool e dalla rubrica sopra.
+                if result != .correct, let q = question, q.kind.isFormativeAnswer == false {
                     CorrectAnswerView(question: q)
                 }
 
@@ -1132,6 +1239,8 @@ private struct FeedbackBanner: View {
     /// del V/F sbagliato e `question.explanation` coincidono o si sovrappongono.
     private var explanationsToShow: [String] {
         guard result != .correct else { return [] }
+        // Per i tipi aperti la spiegazione vive già nella rubrica: niente doppione nel banner.
+        if question?.kind.isFormativeAnswer == true { return [] }
         var out: [String] = []
         func add(_ raw: String?) {
             guard let s = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return }
@@ -1278,20 +1387,13 @@ private func bulletSection(_ title: String, _ items: [String], icon: String, col
 
 private struct OpenRubricView: View {
     let question: Question
-    @Binding var text: String
     var poolShown: [PoolEntry]? = nil
     @Binding var poolSelected: Set<String>
     let revealed: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TextEditor(text: $text)
-                .frame(minHeight: 110)
-                .padding(6)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(.systemGray4)))
-                .accessibilityLabel("Campo risposta aperta")
-
-            // Verifica ragionata opzionale: l'utente sceglie quali punti chiave ritiene corretti.
+            // La risposta si dà selezionando le affermazioni corrette (niente più testo libero).
             if let shown = poolShown {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Quali tra queste affermazioni colgono i punti chiave?")
@@ -1343,20 +1445,13 @@ private struct RubricView: View {
 
 private struct ConstructedResponseView: View {
     let question: Question
-    @Binding var text: String
     var poolShown: [PoolEntry]? = nil
     @Binding var poolSelected: Set<String>
     let revealed: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TextEditor(text: $text)
-                .frame(minHeight: 130)
-                .padding(6)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(.systemGray4)))
-                .accessibilityLabel("Campo produzione")
-
-            // Checklist ragionata opzionale: requisiti corretti mescolati a falsi requisiti plausibili.
+            // La risposta si dà selezionando i requisiti corretti (niente più testo libero).
             if let shown = poolShown {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Quali sono requisiti corretti per questa produzione?")
@@ -1575,10 +1670,10 @@ private struct SubquestionInputView: View {
         case .ordered:
             OrderedView(items: question.items ?? [], userOrder: $input.userOrder)
         case .openRubric:
-            OpenRubricView(question: question, text: $input.text,
+            OpenRubricView(question: question,
                            poolShown: poolShown, poolSelected: $input.poolSelected, revealed: revealed)
         case .constructedResponse:
-            ConstructedResponseView(question: question, text: $input.text,
+            ConstructedResponseView(question: question,
                                     poolShown: poolShown, poolSelected: $input.poolSelected, revealed: revealed)
         case .mediaAnalysis, .caseStudy:
             EmptyView() // vietato annidare compositi (bloccato in validazione)
@@ -1593,67 +1688,148 @@ private struct PoolSelectionView: View {
     @Binding var selected: Set<String>
     let revealed: Bool
 
+    /// Stato di un'opzione una volta mostrata la soluzione.
+    private enum Outcome {
+        case correctSelected   // corretta e scelta
+        case correctMissed     // corretta ma NON scelta (errore da evidenziare)
+        case wrongSelected     // errata e scelta
+        case wrongExcluded     // errata e correttamente esclusa (rumore, in secondo piano)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(shown) { entry in
-                row(entry)
+                if revealed { solutionCard(entry) } else { selectableCard(entry) }
             }
         }
     }
 
-    @ViewBuilder
-    private func row(_ entry: PoolEntry) -> some View {
+    // MARK: - Stato "risposta" (card selezionabile)
+
+    private func selectableCard(_ entry: PoolEntry) -> some View {
         let isSel = selected.contains(entry.id)
-        VStack(alignment: .leading, spacing: 4) {
-            Button {
-                guard !revealed else { return }
-                if isSel { selected.remove(entry.id) } else { selected.insert(entry.id) }
-            } label: {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: isSel ? "checkmark.square.fill" : "square")
-                        .foregroundColor(revealed ? statusColor(entry, isSel) : .accentColor)
-                    Text(entry.text)
-                        .foregroundColor(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+        return Button {
+            if isSel { selected.remove(entry.id) } else { selected.insert(entry.id) }
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: isSel ? "checkmark.square.fill" : "square")
+                    .foregroundColor(isSel ? .accentColor : .secondary)
+                Text(entry.displayText)
+                    .foregroundColor(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
-            .disabled(revealed)
-            .accessibilityAddTraits(isSel ? .isSelected : [])
-            .accessibilityLabel(accessibilityLabel(entry, isSel))
+            .padding(12)
+            .background(isSel ? Color.accentColor.opacity(0.10) : Color(.secondarySystemBackground),
+                        in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12)
+                .stroke(isSel ? Color.accentColor.opacity(0.5) : Color(.separator).opacity(0.4), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSel ? .isSelected : [])
+        .accessibilityLabel("Opzione \(isSel ? "selezionata" : "non selezionata"): \(entry.displayText)")
+    }
 
-            if revealed {
-                Text(statusText(entry, isSel))
+    // MARK: - Stato "soluzione" (card per stato, gerarchizzata)
+
+    private func solutionCard(_ entry: PoolEntry) -> some View {
+        let o = outcome(entry)
+        let dimmed = (o == .wrongExcluded)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: icon(o))
+                    .foregroundColor(tint(o))
+                Text(entry.displayText)
+                    .foregroundColor(dimmed ? .secondary : .primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            // Spiegazione solo se aggiunge informazione rispetto al testo dell'opzione.
+            if let exp = meaningfulExplanation(entry) {
+                Text(exp).font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 28)
+            }
+            if let tag = tagText(o) {
+                Text(tag)
                     .font(.caption2.weight(.semibold))
-                    .foregroundColor(statusColor(entry, isSel))
-                if let exp = entry.explanation, !exp.isEmpty {
-                    Text(exp).font(.caption2).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                    .foregroundColor(tint(o))
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(tint(o).opacity(0.15), in: Capsule())
+                    .padding(.leading, 28)
             }
         }
-        .padding(.vertical, 2)
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(cardFill(o), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(cardStroke(o), lineWidth: 1))
+        .opacity(dimmed ? 0.6 : 1)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(tagText(o) ?? "Esclusa correttamente"): \(entry.displayText)")
     }
 
-    private func statusColor(_ e: PoolEntry, _ isSel: Bool) -> Color {
-        if e.isCorrect { return isSel ? .green : .orange }
-        return isSel ? .red : .secondary
-    }
-
-    private func statusText(_ e: PoolEntry, _ isSel: Bool) -> String {
+    private func outcome(_ e: PoolEntry) -> Outcome {
+        let isSel = selected.contains(e.id)
         switch (e.isCorrect, isSel) {
-        case (true, true):   return "Corretta selezionata"
-        case (true, false):  return "Corretta non selezionata"
-        case (false, true):  return "Errata selezionata"
-        case (false, false): return "Errata, correttamente esclusa"
+        case (true, true):   return .correctSelected
+        case (true, false):  return .correctMissed
+        case (false, true):  return .wrongSelected
+        case (false, false): return .wrongExcluded
         }
     }
 
-    private func accessibilityLabel(_ e: PoolEntry, _ isSel: Bool) -> String {
-        let state = isSel ? "selezionata" : "non selezionata"
-        guard revealed else { return "Opzione \(state): \(e.text)" }
-        return "\(statusText(e, isSel)): \(e.text)"
+    /// Colore d'accento per stato. La corretta mancata usa il "warning" dell'app (giallo/arancio).
+    private func tint(_ o: Outcome) -> Color {
+        switch o {
+        case .correctSelected: return .green
+        case .correctMissed:   return QuizTheme.Colors.warning
+        case .wrongSelected:   return .red
+        case .wrongExcluded:   return .secondary
+        }
+    }
+
+    private func icon(_ o: Outcome) -> String {
+        switch o {
+        case .correctSelected: return "checkmark.circle.fill"
+        case .correctMissed:   return "exclamationmark.circle.fill"
+        case .wrongSelected:   return "xmark.circle.fill"
+        case .wrongExcluded:   return "circle"
+        }
+    }
+
+    private func tagText(_ o: Outcome) -> String? {
+        switch o {
+        case .correctSelected: return "La tua scelta · corretta"
+        case .correctMissed:   return "Mancata · andava selezionata"
+        case .wrongSelected:   return "La tua scelta · errata"
+        case .wrongExcluded:   return nil
+        }
+    }
+
+    private func cardFill(_ o: Outcome) -> Color {
+        switch o {
+        case .correctSelected: return Color.green.opacity(0.12)
+        case .correctMissed:   return QuizTheme.Colors.warning.opacity(0.14)
+        case .wrongSelected:   return Color.red.opacity(0.12)
+        case .wrongExcluded:   return Color(.secondarySystemBackground)
+        }
+    }
+
+    private func cardStroke(_ o: Outcome) -> Color {
+        switch o {
+        case .correctSelected: return Color.green.opacity(0.45)
+        case .correctMissed:   return QuizTheme.Colors.warning.opacity(0.5)
+        case .wrongSelected:   return Color.red.opacity(0.45)
+        case .wrongExcluded:   return Color(.separator).opacity(0.4)
+        }
+    }
+
+    /// Restituisce la spiegazione solo se non è (in sostanza) una ripetizione del testo dell'opzione.
+    private func meaningfulExplanation(_ e: PoolEntry) -> String? {
+        guard let raw = e.explanation?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return nil }
+        let a = raw.lowercased(), b = e.displayText.lowercased()
+        if b.contains(a) || a.contains(b) { return nil }
+        return raw
     }
 }
 

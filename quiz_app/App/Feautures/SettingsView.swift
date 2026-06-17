@@ -7,8 +7,40 @@
 
 import SwiftUI
 
+/// Preferenza tema dell'app, persistita in `@AppStorage("app_theme")`.
+enum AppTheme: String, CaseIterable, Identifiable {
+    case system, light, dark
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .system: return "Automatico"
+        case .light:  return "Chiaro"
+        case .dark:   return "Scuro"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .system: return "circle.lefthalf.filled"
+        case .light:  return "sun.max"
+        case .dark:   return "moon"
+        }
+    }
+
+    /// `nil` = segue il sistema.
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light:  return .light
+        case .dark:   return .dark
+        }
+    }
+}
+
 struct SettingsView: View {
     @ObservedObject private var notifications = NotificationService.shared
+    @AppStorage("app_theme") private var appTheme: String = AppTheme.system.rawValue
 
     private var appVersion: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -18,6 +50,21 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section {
+                Picker(selection: $appTheme) {
+                    ForEach(AppTheme.allCases) { theme in
+                        Label(theme.label, systemImage: theme.systemImage).tag(theme.rawValue)
+                    }
+                } label: {
+                    Label("Tema", systemImage: "paintbrush")
+                }
+                .pickerStyle(.menu)
+            } header: {
+                Text("Aspetto")
+            } footer: {
+                Text("\"Automatico\" segue l'aspetto del sistema.")
+            }
+
             Section {
                 Toggle(isOn: Binding(
                     get: { notifications.isEnabled },

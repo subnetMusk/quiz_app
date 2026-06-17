@@ -144,6 +144,7 @@ struct ModeCard: View {
                 Text(title)
                     .font(.headline)
                     .foregroundStyle(isSelected ? Color.white : Color.primary)
+                    .lineLimit(2, reservesSpace: true)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(subtitle)
                     .font(.caption)
