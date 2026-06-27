@@ -20,6 +20,20 @@ public struct OptionStats: Codable, Hashable, Equatable {
     }
 }
 
+/// Statistiche per un concetto (`canonicalPointId`) nelle risposte da pool randomizzato.
+/// Slegate dalla frase specifica: misurano il concetto, non la sua parafrasi.
+/// - `missedCorrect`: quante volte il concetto corretto mostrato NON è stato selezionato.
+/// - `wrongSelected`: quante volte una variante errata del concetto è stata selezionata.
+public struct ConceptStats: Codable, Hashable, Equatable {
+    public var missedCorrect: Int
+    public var wrongSelected: Int
+
+    public init(missedCorrect: Int = 0, wrongSelected: Int = 0) {
+        self.missedCorrect = missedCorrect
+        self.wrongSelected = wrongSelected
+    }
+}
+
 /// Statistiche aggregate per una domanda.
 public struct QuestionStats: Codable, Hashable, Equatable {
     public var attempts: Int
