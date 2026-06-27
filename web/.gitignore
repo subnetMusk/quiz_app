@@ -1,0 +1,7 @@
+node_modules
+dist
+dist-ssr
+*.local
+
+# Dati materie copiati automaticamente da quiz_app/Documents (sorgente di verità unica).
+public/data
