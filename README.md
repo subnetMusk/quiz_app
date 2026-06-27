@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="screenshots/app-icon.png" width="120" alt="QuizApp icon"/>
-
 # QuizApp iOS
 
 **App di studio per iPhone e iPad.** Importi i tuoi contenuti via JSON e l'app ti fa quiz,
